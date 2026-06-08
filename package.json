@@ -1,0 +1,15 @@
+{
+  "name": "nodiom-demo",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Live demo for the Halifax Agentics Meetup — nodiom structured Markdown for AI agents.",
+  "scripts": {
+    "problem": "node 1-the-problem.mjs",
+    "local": "node 2-nodiom-local.mjs",
+    "cloud": "node 3-nodiom-cloud.mjs",
+    "reset": "node reset.mjs"
+  },
+  "dependencies": {
+    "@synexiom-labs/nodiom": "^0.1.1"
+  }
+}
