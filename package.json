@@ -7,6 +7,7 @@
     "problem": "node 1-the-problem.mjs",
     "local": "node 2-nodiom-local.mjs",
     "cloud": "node 3-nodiom-cloud.mjs",
+    "cloud:own": "node -e \"import('./3-nodiom-cloud.mjs')\"",
     "reset": "node reset.mjs"
   },
   "dependencies": {

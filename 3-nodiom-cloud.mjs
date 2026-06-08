@@ -6,21 +6,18 @@
  * works across distributed systems.
  *
  * Usage:
- *   NODIOM_API_KEY=<your-key> node 3-nodiom-cloud.mjs
+ *   npm run cloud          ← uses shared demo key
+ *   npm run cloud:own      ← uses your own key from .env
  */
 
 import { readFileSync, writeFileSync } from 'fs';
 
-const API_KEY = process.env.NODIOM_API_KEY;
-const API_URL = 'https://nodiom-cloud-production.up.railway.app/mcp';
-// Will update to https://api.nodiom.md/mcp once DNS propagates
+// Shared demo key — intentionally public, rate-limited to 100 req/hour.
+// Get your own key at: https://nodiom.md#cloud
+const DEMO_KEY = 'ndc_f467b1459152c65f5c2d5295ec4052af527641cb8b8ef3cc';
 
-if (!API_KEY) {
-  console.error('\n❌ Set your API key first:\n');
-  console.error('   NODIOM_API_KEY=<your-key> node 3-nodiom-cloud.mjs\n');
-  console.error('   Get early access at: https://nodiom.md#cloud\n');
-  process.exit(1);
-}
+const API_KEY = process.env.NODIOM_API_KEY ?? DEMO_KEY;
+const API_URL = 'https://nodiom-cloud-production.up.railway.app/mcp';
 
 async function callTool(toolName, args) {
   const response = await fetch(API_URL, {
@@ -39,7 +36,6 @@ async function callTool(toolName, args) {
   });
 
   const text = await response.text();
-  // StreamableHTTP wraps response in SSE — extract the data line
   const dataLine = text.split('\n').find(l => l.startsWith('data: '));
   if (!dataLine) throw new Error(`Unexpected response: ${text}`);
   const parsed = JSON.parse(dataLine.slice(6));
@@ -49,9 +45,10 @@ async function callTool(toolName, args) {
 
 console.log('\n── DEMO 3: Nodiom Cloud API ──────────────────────────────\n');
 console.log(`Endpoint: ${API_URL}`);
+console.log(`API key:  ${API_KEY === DEMO_KEY ? 'shared demo key' : 'your key'}`);
 console.log('No local file system. Pure HTTP. Works from anywhere.\n');
 
-// Read the wiki — send content to the cloud, get structured result back
+// Read the wiki locally — send content to the cloud, get result back
 let content = readFileSync('./wiki.md', 'utf-8');
 
 // 1. Get document outline from the cloud
@@ -64,7 +61,7 @@ tasks.children.forEach(c => console.log(`   ${'#'.repeat(c.depth)} ${c.heading}`
 console.log('\n② nodiom_read_list — active tasks:');
 const items = await callTool('nodiom_read_list', {
   content,
-  selector: '# Project Atlas > ## Tasks > ### Active'
+  selector: '# Project Atlas > ## Tasks > ### Active',
 });
 items.forEach((t, i) => console.log(`   ${i}: ${t.trim()}`));
 
@@ -76,21 +73,19 @@ const appended = await callTool('nodiom_append', {
   newContent: '- [ ] Deploy cloud evaluation pipeline',
 });
 content = appended.updatedContent;
-
-// 4. Save the result back locally (in production: save to your own storage)
 writeFileSync('./wiki.md', content);
 console.log('   ✓ Updated content returned. Saved to local storage.');
 
-// 5. Confirm
-console.log('\n④ nodiom_query — verify the section exists and its child count:');
+// 4. Confirm with a query
+console.log('\n④ nodiom_query — verify the updated section:');
 const meta = await callTool('nodiom_query', {
   content,
-  selector: '# Project Atlas > ## Tasks > ### Active'
+  selector: '# Project Atlas > ## Tasks > ### Active',
 });
 console.log(`   exists: ${meta.exists}, type: ${meta.type}, depth: ${meta.depth}`);
 
 console.log('\n✓ All operations ran on the Nodiom Cloud API.');
 console.log('✓ No file system access on the server — fully stateless.');
 console.log('✓ Works from Lambda, Vercel, Cloudflare Workers, anywhere.\n');
-console.log('   → Get early access: https://nodiom.md#cloud\n');
+console.log('   → Get your own key: https://nodiom.md#cloud\n');
 console.log('────────────────────────────────────────────────────────\n');
