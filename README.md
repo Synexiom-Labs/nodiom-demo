@@ -57,13 +57,17 @@ doc.delete('# Project Atlas > ## Tasks > ### Blocked > li[0]');
 ## Demo 3 — Nodiom Cloud API
 
 ```bash
-npm run reset
+npm run cloud          # uses a shared public sandbox key
+# or, with your own key:
 NODIOM_API_KEY=<your-key> node 3-nodiom-cloud.mjs
 ```
 
-Same operations over HTTP. No local file system. Works from Lambda, Vercel, Cloudflare Workers, or any distributed agent environment.
+Same operations as Demo 2 — but the document lives in your Nodiom Cloud account,
+addressed by `doc_id`, not passed in as a string. No local file system. Works
+from Lambda, Vercel, Cloudflare Workers, or any distributed agent environment.
 
-**Get an early access key:** [nodiom.md#cloud](https://nodiom.md#cloud)
+**Get your own key:** [app.nodiom.md/sign-up](https://app.nodiom.md/sign-up) ·
+**Docs:** [app.nodiom.md/docs](https://app.nodiom.md/docs)
 
 ---
 
