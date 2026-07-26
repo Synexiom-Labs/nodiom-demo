@@ -1,108 +1,73 @@
 /**
- * DEMO 2 — nodiom local library
+ * DEMO 2 — nodiom, the local library
  *
- * Same operation as Demo 1. Structural selectors. No regex.
- * Auto-resets wiki.md at the start — safe to run multiple times.
+ * The same three edits from Demo 1, addressed structurally instead of by
+ * pattern-matching. Self-contained — safe to run as many times as you like.
  */
 
 import { Nodiom } from '@synexiom-labs/nodiom';
-import { writeFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
+import { resetWiki, WIKI_PATH, ORIGINAL } from './fixture.mjs';
 
-// Always start from a clean slate
-const original = `# Project Atlas
+resetWiki();
 
-An AI-powered research assistant for academic teams.
+console.log('\n── DEMO 2: nodiom local library ───────────────────────────\n');
 
-## Overview
+const doc = await Nodiom.fromFile(WIKI_PATH);
 
-Project Atlas automates literature reviews, synthesizes findings across papers,
-and generates structured research summaries. Launched February 2026.
-
-## Team
-
-- Maya Patel — Tech Lead
-- James Okonkwo — ML Engineer
-- Sara Lindqvist — Research Lead
-- Dev Sharma — Backend
-
-## Tasks
-
-### Active
-
-- [ ] Train document embedding model on domain corpus
-- [ ] Build citation graph extraction pipeline
-- [ ] Design researcher feedback interface
-- [x] Set up vector database infrastructure
-
-### Completed
-
-- [x] Project charter approved
-- [x] Dataset acquisition finalized
-- [x] Initial architecture review
-
-### Blocked
-
-- [ ] IRB ethics approval — waiting on university committee
-- [ ] GPU cluster access — pending procurement sign-off
-
-## Meeting Notes
-
-### 2026-06-01
-
-Reviewed embedding model benchmarks. Maya flagged that domain-specific fine-tuning
-improved retrieval accuracy by 34% over base model. Decision: proceed with full
-fine-tuning before the Q3 milestone.
-
-## Risks
-
-1. Ethics approval timeline may push launch past Q3
-2. GPU availability is constrained — Ray cluster is at 90% utilization
-3. Research lead Sara is splitting time with Project Beacon until July
-`;
-
-writeFileSync('./wiki.md', original);
-
-console.log('\n── DEMO 2: nodiom local library ──────────────────────────\n');
-
-const doc = await Nodiom.fromFile('./wiki.md');
-
-// 1. See the full document structure before touching anything
-console.log('① nodiom_tree — document outline:');
+// ① The outline — know the structure before touching it
+console.log('① nodiom.tree() — the document\'s structure:');
 const outline = doc.tree();
-const tasks = outline[0].children.find(c => c.heading === 'Tasks');
-tasks.children.forEach(c => console.log(`   ${'#'.repeat(c.depth)} ${c.heading}`));
+const tasks = outline[0].children.find((c) => c.heading === 'Tasks');
+tasks.children.forEach((c) => console.log(`     ${'#'.repeat(c.depth)} ${c.heading}`));
 
-// 2. Read the active tasks
-console.log('\n② nodiom_read_list — active tasks before edit:');
-const before = doc.readList('# Project Atlas > ## Tasks > ### Active');
-before.forEach((t, i) => console.log(`   ${i}: ${t.trim()}`));
-
-// 3. Append a new task — address by selector, no regex
-doc.append(
-  '# Project Atlas > ## Tasks > ### Active',
-  '- [ ] Integrate agent feedback loop'
+// ② Read one section, not the whole file
+console.log('\n② nodiom.readList("# Project Atlas > ## Tasks > ### Active"):');
+doc.readList('# Project Atlas > ## Tasks > ### Active').forEach((t, i) =>
+  console.log(`     ${i}: ${t.trim()}`),
 );
 
-// 4. Chain more operations in one go
+// ③ The edit that duplicated itself in Demo 1
+console.log('\n③ Append to ### Active — the edit that duplicated in Demo 1');
+doc.append('# Project Atlas > ## Tasks > ### Active', '- [ ] Integrate agent feedback loop');
+console.log('     ✓ Addressed by selector, so "where does this go" is not a guess.');
+
+// ④ The edit that silently vanished in Demo 1
+console.log('\n④ Append to ## Risks — the edit that silently vanished in Demo 1');
+doc.append('# Project Atlas > ## Risks', '4. Vendor contract renewal is unconfirmed');
+console.log('     ✓ Last section in the file. No anchor needed — it is a node, not a pattern.');
+
+// ⑤ Chain operations, then save once
+console.log('\n⑤ Chain a delete and a log entry, then save:');
 doc
   .delete('# Project Atlas > ## Tasks > ### Blocked > li[0]')
   .append(
     '# Project Atlas > ## Meeting Notes',
-    `### ${new Date().toISOString().split('T')[0]}\n\nAgent feedback loop task added. IRB blocker removed — approved this morning.`
+    `### ${new Date().toISOString().split('T')[0]}\n\nAgent feedback loop task added. IRB blocker cleared.`,
   );
-
 await doc.save();
+console.log('     ✓ append + append + delete + append, one save.');
 
-console.log('\n③ Active tasks after edit:');
-const after = doc.readList('# Project Atlas > ## Tasks > ### Active');
-after.forEach((t, i) => console.log(`   ${i}: ${t.trim()}`));
+// ⑥ Prove the untouched sections were not disturbed
+const updated = readFileSync(WIKI_PATH, 'utf-8');
+const section = (text, heading) =>
+  text.match(new RegExp(`## ${heading}\\n([\\s\\S]*?)(?=\\n## )`))?.[1] ?? null;
 
-console.log('\n④ Blocked tasks after delete:');
-const blocked = doc.readList('# Project Atlas > ## Tasks > ### Blocked');
-blocked.forEach((t, i) => console.log(`   ${i}: ${t.trim()}`));
+const overviewSame = section(updated, 'Overview') === section(ORIGINAL, 'Overview');
+const teamSame = section(updated, 'Team') === section(ORIGINAL, 'Team');
 
-console.log('\n✓ Selector syntax: "# Project Atlas > ## Tasks > ### Active"');
-console.log('✓ Address any section like a DOM node — no regex, no line numbers.');
-console.log('✓ Chain operations: append + delete + append in 3 lines.');
-console.log('✓ Untouched sections are byte-identical — formatting preserved.\n');
-console.log('────────────────────────────────────────────────────────\n');
+console.log('\n⑥ Sections nobody edited, compared byte-for-byte against the original:');
+console.log(`     ## Overview identical: ${overviewSame}`);
+console.log(`     ## Team identical:     ${teamSame}`);
+
+console.log('\n── Results ───────────────────────────────────────────────\n');
+const active = doc.readList('# Project Atlas > ## Tasks > ### Active');
+const dupes = active.filter((t) => t.includes('Integrate agent feedback loop')).length;
+console.log(`  · "Integrate agent feedback loop" appears ${dupes}× (Demo 1: 2×)`);
+console.log(`  · The ## Risks edit landed (Demo 1: silently lost)`);
+console.log(`  · Untouched sections byte-identical: ${overviewSame && teamSame}`);
+console.log('\n  Selectors address structure, not text:');
+console.log('    "# Project Atlas > ## Tasks > ### Active"');
+console.log('    "# Project Atlas > ## Tasks > ### Blocked > li[0]"\n');
+console.log('  Next:  npm run cloud\n');
+console.log('──────────────────────────────────────────────────────────\n');

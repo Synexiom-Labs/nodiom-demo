@@ -1,16 +1,21 @@
 {
   "name": "nodiom-demo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
-  "description": "Live demo for the Halifax Agentics Meetup — nodiom structured Markdown for AI agents.",
+  "description": "Runnable demos for nodiom — structured Markdown read/write for AI agents, local and hosted.",
   "scripts": {
     "problem": "node 1-the-problem.mjs",
     "local": "node 2-nodiom-local.mjs",
     "cloud": "node 3-nodiom-cloud.mjs",
-    "cloud:own": "node -e \"import('./3-nodiom-cloud.mjs')\"",
+    "agents": "node 4-multi-agent.mjs",
+    "tokens": "node 5-token-cost.mjs",
+    "all": "npm run problem && npm run local && npm run cloud && npm run agents && npm run tokens",
     "reset": "node reset.mjs"
   },
   "dependencies": {
-    "@synexiom-labs/nodiom": "^0.1.1"
+    "@synexiom-labs/nodiom": "^0.1.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
