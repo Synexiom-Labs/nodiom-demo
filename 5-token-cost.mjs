@@ -14,6 +14,7 @@ import {
   callTool,
   deleteDoc,
   scratchDocId,
+  runDemo,
   wire,
   resetWireStats,
   approxTokens,
@@ -70,63 +71,64 @@ console.log(`  Key:      ${USING_SANDBOX ? 'shared public sandbox' : 'your own k
 console.log(`  Document: ${(WIKI.length / 1024).toFixed(1)}KB — ${SERVICES.length} services, ${INCIDENT_COUNT} incident reports\n`);
 console.log(`  The edit: add one line under ### auth-service\n`);
 
-try {
-  await callTool('nodiom_create_doc', { doc_id: docId, content: WIKI });
+await runDemo(async () => {
+  try {
+    await callTool('nodiom_create_doc', { doc_id: docId, content: WIKI });
 
-  // ── Approach A: read it all, change one line, write it all back ──────────
-  resetWireStats();
-  const full = await callTool('nodiom_get_doc', { doc_id: docId });
-  const spliced = full.replace(
-    /(### auth-service\n\n)/,
-    `$1- Note: rotate signing keys quarterly\n`,
-  );
-  await callTool('nodiom_write', {
-    doc_id: docId,
-    selector: '# Engineering Wiki',
-    new_content: spliced.split('\n').slice(1).join('\n'),
-  });
-  const naive = { ...wire };
+    // ── Approach A: read it all, change one line, write it all back ────────
+    resetWireStats();
+    const full = await callTool('nodiom_get_doc', { doc_id: docId });
+    const spliced = full.replace(
+      /(### auth-service\n\n)/,
+      `$1- Note: rotate signing keys quarterly\n`,
+    );
+    await callTool('nodiom_write', {
+      doc_id: docId,
+      selector: '# Engineering Wiki',
+      new_content: spliced.split('\n').slice(1).join('\n'),
+    });
+    const naive = { ...wire };
 
-  // ── Approach B: address the section, send only the new line ──────────────
-  resetWireStats();
-  await callTool('nodiom_append', {
-    doc_id: docId,
-    selector: SELECTOR,
-    new_content: '- Note: rotate signing keys quarterly',
-  });
-  const structural = { ...wire };
+    // ── Approach B: address the section, send only the new line ────────────
+    resetWireStats();
+    await callTool('nodiom_append', {
+      doc_id: docId,
+      selector: SELECTOR,
+      new_content: '- Note: rotate signing keys quarterly',
+    });
+    const structural = { ...wire };
 
-  const fmt = (n) => `${(n / 1024).toFixed(1)}KB`;
-  const pad = (s, n) => String(s).padEnd(n);
+    const fmt = (n) => `${(n / 1024).toFixed(1)}KB`;
+    const pad = (s, n) => String(s).padEnd(n);
+    const naiveTotal = approxTokens(naive.received + naive.sent);
+    const structTotal = approxTokens(structural.received + structural.sent);
 
-  console.log('  Measured wire payload for that single edit:\n');
-  console.log(`    ${pad('', 22)}${pad('read (input)', 16)}${pad('write (output)', 16)}round trips`);
-  console.log(`    ${pad('full rewrite', 22)}${pad(fmt(naive.received), 16)}${pad(fmt(naive.sent), 16)}${naive.calls}`);
-  console.log(`    ${pad('nodiom_append', 22)}${pad(fmt(structural.received), 16)}${pad(fmt(structural.sent), 16)}${structural.calls}`);
+    console.log('  Measured wire payload for that single edit:\n');
+    console.log(`    ${pad('', 22)}${pad('read (input)', 16)}${pad('write (output)', 16)}round trips`);
+    console.log(`    ${pad('full rewrite', 22)}${pad(fmt(naive.received), 16)}${pad(fmt(naive.sent), 16)}${naive.calls}`);
+    console.log(`    ${pad('nodiom_append', 22)}${pad(fmt(structural.received), 16)}${pad(fmt(structural.sent), 16)}${structural.calls}`);
 
-  console.log('\n  As approximate tokens (~4 chars/token):\n');
-  console.log(`    ${pad('', 22)}${pad('input', 16)}${pad('output', 16)}total`);
-  const naiveTotal = approxTokens(naive.received + naive.sent);
-  const structTotal = approxTokens(structural.received + structural.sent);
-  console.log(`    ${pad('full rewrite', 22)}${pad(approxTokens(naive.received), 16)}${pad(approxTokens(naive.sent), 16)}${naiveTotal}`);
-  console.log(`    ${pad('nodiom_append', 22)}${pad(approxTokens(structural.received), 16)}${pad(approxTokens(structural.sent), 16)}${structTotal}`);
+    console.log('\n  As approximate tokens (~4 chars/token):\n');
+    console.log(`    ${pad('', 22)}${pad('input', 16)}${pad('output', 16)}total`);
+    console.log(`    ${pad('full rewrite', 22)}${pad(approxTokens(naive.received), 16)}${pad(approxTokens(naive.sent), 16)}${naiveTotal}`);
+    console.log(`    ${pad('nodiom_append', 22)}${pad(approxTokens(structural.received), 16)}${pad(approxTokens(structural.sent), 16)}${structTotal}`);
 
-  const saved = 100 * (1 - structTotal / naiveTotal);
-  console.log(`\n  Reduction on this edit: ${saved.toFixed(1)}%  (${naiveTotal} → ${structTotal} tokens)`);
-  console.log(`  Ratio: ${(naiveTotal / structTotal).toFixed(0)}× cheaper\n`);
+    const saved = 100 * (1 - structTotal / naiveTotal);
+    console.log(`\n  Reduction on this edit: ${saved.toFixed(1)}%  (${naiveTotal} → ${structTotal} tokens)`);
+    console.log(`  Ratio: ${(naiveTotal / structTotal).toFixed(0)}× cheaper\n`);
 
-  console.log('── What this scales like ─────────────────────────────────\n');
-  console.log('  Full-rewrite cost is proportional to document size — a bigger wiki');
-  console.log('  costs more for the same one-line change. Structural cost is');
-  console.log('  proportional to the edit, so it stays flat as the document grows.\n');
-  console.log('  An agent making 30 edits a session against this document:');
-  console.log(`    full rewrite:  ~${(naiveTotal * 30).toLocaleString()} tokens`);
-  console.log(`    nodiom:        ~${(structTotal * 30).toLocaleString()} tokens\n`);
-  console.log('  Same finding as the peer-reviewed work on structure-aware code');
-  console.log('  editing (arXiv 2604.27296), which measured 30%+ cost reduction on');
-  console.log('  long files — the gap widens further at agent-memory scale.\n');
-} finally {
-  await deleteDoc(docId);
-  console.log(`  (cleaned up ${docId})\n`);
-}
-console.log('──────────────────────────────────────────────────────────\n');
+    console.log('── What this scales like ─────────────────────────────────\n');
+    console.log('  Full-rewrite cost is proportional to document size — a bigger wiki');
+    console.log('  costs more for the same one-line change. Structural cost is');
+    console.log('  proportional to the edit, so it stays flat as the document grows.\n');
+    console.log('  An agent making 30 edits a session against this document:');
+    console.log(`    full rewrite:  ~${(naiveTotal * 30).toLocaleString()} tokens`);
+    console.log(`    nodiom:        ~${(structTotal * 30).toLocaleString()} tokens\n`);
+    console.log('  Same finding as the peer-reviewed work on structure-aware code');
+    console.log('  editing (arXiv 2604.27296), which measured 30%+ cost reduction on');
+    console.log('  long files — the gap widens further at agent-memory scale.\n');
+    console.log('──────────────────────────────────────────────────────────\n');
+  } finally {
+    await deleteDoc(docId);
+  }
+});
