@@ -158,11 +158,24 @@ Docs at [app.nodiom.md/docs](https://app.nodiom.md/docs)
 
 ## About the sandbox key
 
-`lib/cloud.mjs` contains a public API key on purpose, so this repo runs with
-zero setup. It is rate-limited and scoped to a throwaway account. To run the
-demos against your own account instead:
+`lib/cloud.mjs` contains a working API key on purpose, so this repo runs with
+zero setup. Worth knowing what it is:
+
+- **Shared.** Every document created with it lives in one throwaway account, so
+  anyone running these demos can see, read, or delete anyone else's. The demos
+  use randomly-named documents and clean up after themselves, but you should
+  **never put anything real behind this key.**
+- **Hard-capped and rate-limited per IP.** It cannot be billed, and one heavy
+  user cannot exhaust it for everyone else.
+- **Rotated periodically.** If the key in your clone has gone stale, the demos
+  will tell you to `git pull`.
+
+For anything beyond kicking the tyres, get your own key — about a minute, no
+card required:
 
 ```bash
+# 1. https://app.nodiom.md/sign-up
+# 2. Dashboard → API Keys → Create key
 NODIOM_API_KEY=nk_live_yourkey npm run all
 ```
 
